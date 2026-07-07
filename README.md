@@ -58,9 +58,9 @@ Si ese servidor falla, el sistema queda inoperativo.
 
         Usuario
           ↓
-Balanceador de carga
-    ↓             ↓
-Servidor A    Servidor B
+        Balanceador de carga
+          ↓             ↓
+        Servidor A    Servidor B
 
 Si el Servidor A falla, el balanceador puede enviar tráfico al Servidor B.
 
@@ -82,9 +82,106 @@ Un balanceador de carga recibe solicitudes de los usuarios y las distribuye entr
 Un Target Group es un grupo de destinos a los cuales el balanceador enviará tráfico.
 
 Target Group: tg-ha-web
+
 ├── EC2 instancia A
+
 └── EC2 instancia B
 
 ---
 
 ## 4. LAB - Paso A Paso
+
+### Crear la Primera Instancia EC2 (web-ha-a)
+
+| Campo                          | Valor                                                                                                            |
+| :----------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **Name**                       | `web-ha-a`                                                                                                       |
+| **Application and OS Images**  | Amazon Linux 2023                                                                                                |
+| **Instance type**              | `t3.micro`                                                                                          |
+| **Key pair**                   | Selecciona una existente o crea una nueva                                                                        |
+| **Network settings**           |                                                                                                                  |
+| → VPC                          | VPC predeterminada                                                                                               |
+| → Subnet                       | **us-east-1a**                                                   |
+| → Auto-assign public IP        | **Enable**                                                                                                       |
+| **Firewall (Security groups)** | Selecciona `sg-ec2-ha`, que es la instancia de sguridad que se crea mas adelante |
+| **Advanced details**           |                                                                                                                  |
+| → **User data**                | Pega el script de lab ↓                                                                                        |
+
+
+![alt text](image.png)
+
+![alt text](<image copy.png>)
+
+Para probar usamos la IP de la instancia : 54.175.171.229
+
+![alt text](<image copy 2.png>)
+
+### Crear la Segunda Instancia EC2 (web-ha-b)
+
+| Campo                          | Valor                                                             |
+| :----------------------------- | :---------------------------------------------------------------- |
+| **Name**                       | `web-ha-b`                                                        |
+| **Application and OS Images**  | Amazon Linux 2023                                                 |
+| **Instance type**              | `t3.micro`                                           |
+| **Key pair**                   | La misma que usaste para web-ha-a                                 |
+| **Network settings**           |                                                                   |
+| → VPC                          | VPC predeterminada                                                |
+| → Subnet                       | **us-east-1b** |
+| → Auto-assign public IP        | **Enable**                                                        |
+| **Firewall (Security groups)** | `sg-ec2-ha`  |
+| **Advanced details**           |                                                                   |
+| → **User data**                | Pega el script de Lab ↓                                         |
+
+
+![alt text](<image copy 3.png>)
+
+![alt text](<image copy 4.png>)
+
+Para probar usamos la IP de la instancia : 3.92.138.95
+
+![alt text](image-1.png)
+
+### Crear Security Groups
+
+#### Security Group 1: alb-ha (Para el Load Balancer)
+
+| Campo                   | Valor                                                                    |
+| :---------------------- | :----------------------------------------------------------------------- |
+| **Security group name** | `alb-ha`                                                              |
+| **Description**         | `Permite tráfico HTTP desde Internet hacia el Application Load Balancer` |
+| **VPC**                 | VPC predeterminada                                                       |
+
+**Reglas de ENTRADA (Inbound rules):**   
+| Tipo | Protocolo | Puerto | Origen      |
+| :--- | :-------- | :----- | :---------- |
+| HTTP | TCP       | 80     | `0.0.0.0/0` |
+
+
+**Reglas de SALIDA (Outbound rules):**
+| Tipo        | Protocolo | Puerto | Destino     |
+| :---------- | :-------- | :----- | :---------- |
+| All traffic | All       | All    | `0.0.0.0/0` |
+
+#### Security Group 2: ec2-ha (Para las Instancias EC2)
+
+| Campo                   | Valor                                                    |
+| :---------------------- | :------------------------------------------------------- |
+| **Security group name** | `ec2-ha`                                              |
+| **Description**         | `Permite tráfico HTTP únicamente desde el Load Balancer` |
+| **VPC**                 | VPC predeterminada                                       |
+
+
+**Reglas de ENTRADA (Inbound rules):**
+
+| Tipo | Protocolo | Puerto | Origen      |
+| :--- | :-------- | :----- | :---------- |
+| HTTP | TCP       | 80     | `alb-ha` |
+
+**Reglas de SALIDA (Outbound rules):**
+
+| Tipo        | Protocolo | Puerto | Destino     |
+| :---------- | :-------- | :----- | :---------- |
+| All traffic | All       | All    | `0.0.0.0/0` |
+
+**Crear el Target Group**
+
