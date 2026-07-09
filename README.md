@@ -108,13 +108,13 @@ Target Group: tg-ha-web
 | → **User data**                | Pega el script de lab ↓                                                                                        |
 
 
-![alt text](image.png)
+![alt text](resources/image.png)
 
-![alt text](<image copy.png>)
+![alt text](<resources/image copy.png>)
 
 Para probar usamos la IP de la instancia : 54.175.171.229
 
-![alt text](<image copy 2.png>)
+![alt text](<resources/image copy 2.png>)
 
 ### Crear la Segunda Instancia EC2 (web-ha-b)
 
@@ -133,13 +133,13 @@ Para probar usamos la IP de la instancia : 54.175.171.229
 | → **User data**                | Pega el script de Lab ↓                                         |
 
 
-![alt text](<image copy 3.png>)
+![alt text](<resources/image copy 3.png>)
 
-![alt text](<image copy 4.png>)
+![alt text](<resources/image copy 4.png>)
 
 Para probar usamos la IP de la instancia : 3.92.138.95
 
-![alt text](image-1.png)
+![alt text](resources/image-1.png)
 
 ### Crear Security Groups
 
@@ -183,5 +183,108 @@ Para probar usamos la IP de la instancia : 3.92.138.95
 | :---------- | :-------- | :----- | :---------- |
 | All traffic | All       | All    | `0.0.0.0/0` |
 
+
 **Crear el Target Group**
+
+![alt text](<resources/image copy 5.png>)
+
+Configuración básica:
+
+| Campo                    | Valor              |
+| :----------------------- | :----------------- |
+| **Choose a target type** | `Instances`        |
+| **Target group name**    | `tg-ha-web`        |
+| **Protocol**             | `HTTP`             |
+| **Port**                 | `80`               |
+| **VPC**                  | VPC predeterminada |
+| **Protocol version**     | `HTTP1`            |
+
+Health checks:
+
+| Campo                     | Valor          |
+| :------------------------ | :------------- |
+| **Health check protocol** | `HTTP`         |
+| **Health check path**     | `/health`      |
+| **Port**                  | `Traffic port` |
+| **Healthy threshold**     | `2`            |
+| **Unhealthy threshold**   | `2`            |
+| **Timeout**               | `5 seconds`    |
+| **Interval**              | `15 seconds`   |
+| **Success codes**         | `200`          |
+
+En Register targets:
+
+![alt text](resources/image-2.png)
+
+Clic en Create target group
+
+![alt text](resources/image-3.png)
+
+**Crear el Application Load Balancer**
+
+![alt text](resources/image-4.png)
+
+Application Load Balancer
+
+![alt text](resources/image-5.png)
+
+Configuración básica:
+
+| Campo                  | Valor             |
+| :--------------------- | :---------------- |
+| **Load balancer name** | `alb-ha-web`      |
+| **Scheme**             | `Internet-facing` |
+| **IP address type**    | `IPv4`            |
+
+Network mapping:
+
+| Campo        | Valor                                                               |
+| :----------- | :------------------------------------------------------------------ |
+| **VPC**      | VPC predeterminada                                                  |
+| **Mappings** |  **al menos 2 zonas de disponibilidad**                   |
+|              | Marca las subnets públicas donde están tus instancias (AZ-1 y AZ-2) |
+
+Security groups:
+
+| Campo               | Valor                                   |
+| :------------------ | :-------------------------------------- |
+| **Security groups** | `sg-alb-ha`                  |
+
+Listeners and routing:
+
+| Campo              | Valor                                              |
+| :----------------- | :------------------------------------------------- |
+| **Protocol**       | `HTTP`                                             |
+| **Port**           | `80`                                               |
+| **Default action** | `Forward to target group` → `tg-ha-web` |
+
+Clic en Create load balancer
+
+![alt text](resources/image-6.png)
+
+---
+
+## 5. Prueba del Load Balancer
+
+- EC2 → Load Balancers → alb-ha-web
+
+- Copiar el DNS name
+   
+  ![alt text](resources/image-7.png)
+
+- Se abre en el navegador:
+
+  Se actualiza varias veces y vemos
+
+  ![alt text](resources/image-8.png)
+
+  ![alt text](resources/image-9.png)
+
+A veces aparece la página de Instancia A (azul)
+
+A veces aparece la página de Instancia B (verde)
+  
+**Simular la caída de una instancia**
+
+Cuando se detiene la Instancia A, el Load Balancer detectó mediante los health checks que /health no respondía, la marcó como Unhealthy y dejó de enviarle tráfico automáticamente. El sistema siguió funcionando porque el ALB redirigió todas las solicitudes a la Instancia B, demostrando que no hay un único punto de falla. Cuando se reinicia la Instancia A y pasó los health checks, el balanceador la reintegró al grupo sin intervención manual, restaurando el balanceo entre ambas. Esto mejora los atributos de calidad de disponibilidad y resiliencia, aunque tiene la limitación de que la recuperación requiere reinicio manual.
 
